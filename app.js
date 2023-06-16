@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const mongoose = require('mongoose');
 const cors = require('cors');
 
+const urlLocal = `mongodb://localhost:27017/GMDB`;
 const app = express();
 
 app.use(cors({
@@ -14,7 +15,17 @@ app.get('/', (req, res) => {
     res.send('Server started')
 })
 
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true });
+//Per Docker
+mongoose.connect(`mongodb://mongodb:27017/docker`, {
+    useNewUrlParser: true
+}).then(() => console.log('connected to mongoDb'));
+
+//In locale
+//mongoose.connect(urlLocal, {
+//
+//    useNewUrlParser: true
+//
+//}).then(() => console.log('connected to mongoDb'));
 
 const entertainerSchema = {
     birthdate: String,
@@ -22,6 +33,7 @@ const entertainerSchema = {
     name: String,
     role: String,
     surname: String,
+    avaliabilityPercMonthly: Number,
     avaliability: [String]
 }
 
@@ -59,9 +71,15 @@ app.get('/entertainers', (req, res) => {
 
 app.get('/entertainers/:id', (req, res) => {
     const idEntertainer = req.params.id;
-    console.log(idEntertainer)
     Entertainer.findOne({ _id: idEntertainer }).then(resp => {
-        console.log(resp)
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth();
+        const monthStart = new Date(currentYear, currentMonth, 1);
+        const monthEnd = new Date(currentYear, currentMonth + 1, 1);
+        const monthLength = (monthEnd - monthStart) / (1000 * 60 * 60 * 24);
+        const avaliabilityMonthly = resp.avaliability.filter(el => el.split('-')[1] == currentMonth + 1);
+        const avaliabilityPercMonthly = (100 * avaliabilityMonthly.length / monthLength).toFixed(2);
+        resp.avaliabilityPercMonthly = avaliabilityPercMonthly
         res.send(resp)
     })
 })
@@ -93,6 +111,6 @@ app.delete('/entertainers/:id', (req, res) => {
 
 //TODO
 
-app.listen(process.env.PORT || 3000, function () {
+app.listen(80, function () {
     console.log("Server started on port 3000");
 });
